@@ -57,8 +57,8 @@ type shape_adt =
 (*....................................................................
 Exercise 1A: Given the definitions above, write a function `area_adt`
 that accepts a `shape_adt` and returns a `float` representing the area
-of the shape. (You can review the area of a circle in Section A.3 of
-the textbook.)
+of the shape. (You can review the area calculations for the various
+shapes in Section B.4 of the textbook.)
 ....................................................................*)
 let area_adt (s : shape_adt) : float =
   match s with
@@ -120,27 +120,26 @@ Below, we've created a class type (or interface). Interfaces define
 a new type and define methods for us to interact with this new type.
 
 Once we have defined this class type, we can create new shapes by
-defining classes that implement the shape interface. Below is one such
-interface. *)
+defining classes that implement the shape interface. *)
 
 class type shape =
-object
-  (* The area of this shape *)
-  method area : float
+  object
+    (* The area of this shape *)
+    method area : float
+                    
+    (* The lower-left corner and the upper-right corner of the
+       box that bounds the shape *)
+    method bounding_box : point * point
+                                    
+    (* The center point of this shape *)
+    method center : point
 
-  (* The lower-left corner and the upper-right corner of the
-     box that bounds the shape *)
-  method bounding_box : point * point
+    (* Translates the shape by the offset specified in the point *)
+    method translate : point -> unit
 
-  (* The center point of this shape *)
-  method center : point
-
-  (* Translates the shape by the offset specified in the point *)
-  method translate : point -> unit
-
-  (* Dilates the shape by the scale factor *)
-  method scale : float -> unit
-end ;;
+    (* Dilates the shape by the scale factor *)
+    method scale : float -> unit
+  end ;;
 
 (* This shape interface can have multiple classes implementing it, as so:
 
@@ -197,13 +196,16 @@ store the values provided by the constructor? Keep in mind that the
 object.
 ....................................................................*)
 
-class rect (p : point) (w : float) (h : float) : shape =
+class rect (initial_pos : point)
+           (initial_width : float)
+           (initial_height : float)
+         : shape =
   object (this)
 
     (* instance variables that store the rectangle's properties *)
-    val mutable pos = p       (* lower left corner of rectangle *)
-    val mutable width = w
-    val mutable height = h
+    val mutable pos = initial_pos  (* lower-left corner of rectangle *)
+    val mutable width = initial_width
+    val mutable height = initial_height
 
     method area : float =
       width *. height
@@ -216,27 +218,29 @@ class rect (p : point) (w : float) (h : float) : shape =
       let (x1, y1), (x2, y2) = this#bounding_box in
       (x1 +. x2) /. 2., (y1 +. y2) /. 2.
 
-  (* Destructively update pos to translate the shape by the values
-     given in t. *)
-  method translate ((tx, ty) : point) : unit =
-    let x, y = pos in
-    pos <- x +. tx, y +. ty
+    (* Destructively update `pos` to translate the shape by the values
+       given by `vector`. *)
+    method translate ((vector_x, vector_y) : point) : unit =
+      let x, y = pos in
+      pos <- x +. vector_x, y +. vector_y
 
-  (* Scale the width and height of a rectangle from the lower-left
-     corner. *)
-  method scale (k : float) : unit =
-    width <- width *. k;
-    height <- height *. k
+  (* Scale the width and height of the rectangle from the lower-left
+     corner by the scale factor `k`. *)
+    method scale (k : float) : unit =
+      width <- width *. k;
+      height <- height *. k
   end ;;
 
 (*....................................................................
 Exercise 2B: Implement the `circle` class.
 ....................................................................*)
 
-class circle (c : point) (r : float) : shape =
+class circle (initial_center : point)
+             (initial_radius : float)
+           : shape =
   object
-    val mutable center = c
-    val mutable radius = r
+    val mutable center = initial_center
+    val mutable radius = initial_radius
 
     method area : float = Float.pi *. radius *. radius
 
@@ -247,12 +251,14 @@ class circle (c : point) (r : float) : shape =
     method center : point =
       center
 
-    (* Move the center of the circle by the values tx and ty. *)
-    method translate ((tx, ty) : point) : unit =
+    (* Destructively update position to translate the shape by the
+       values given by `vector`. *)
+    method translate ((vector_x, vector_y) : point) : unit =
       let x, y = center in
-      center <- x +. tx, y +. ty
+      center <- x +. vector_x, y +. vector_y
 
-    (* Scale the radius by k without moving its center. *)
+    (* Scale the radius by scale factor `k` without moving its
+       center. *)
     method scale (k : float) : unit =
       radius <- radius *. k
 
@@ -263,28 +269,27 @@ Exercise 2C: Implement the `square` class. Notice how similar it is to
 `rect`!
 ....................................................................*)
 
-class square (p : point) (s : float) : shape =
-  object(this)
-    val mutable pos = p
-    val mutable side = s
+class square (initial_pos : point) (initial_side : float) : shape =
+  object (this)
+    (* instance variables that store the square's properties *)
+    val mutable pos = initial_pos  (* lower-left corner of rectangle *)
+    val mutable side = initial_side
 
     method area : float = side *. side
 
     method bounding_box : point * point =
-      let (x, y) = pos in
-      (pos, (x +. side, y +. side))
+      let x, y = pos in
+      pos, (x +. side, y +. side)
 
     method center : point =
-      let ((x1, y1), (x2, y2)) = this#bounding_box in
-      ((x1 +. x2) /. 2., (y1 +. y2) /. 2.)
+      let (x1, y1), (x2, y2) = this#bounding_box in
+      (x1 +. x2) /. 2., (y1 +. y2) /. 2.
 
-    (* Move the square by the values tx and ty. *)
-    method translate ((tx, ty) : point) : unit =
-      let (x, y) = pos in
-      pos <- (x +. tx, y +. ty)
+    method translate ((vector_x, vector_y) : point) : unit =
+      let x, y = pos in
+      pos <- x +. vector_x, y +. vector_y
 
-    (* Scale with width and height of a rectangle from the lower-
-       left corner. *)
+    (* Scale the sides of the square from the lower-left corner. *)
     method scale (k : float) : unit =
       side <- side *. k
   end ;;
@@ -295,7 +300,7 @@ shape. Let's discover how easy this is with our objects.
 
 ......................................................................
 Exercise 2D: Create a function called `area` that accepts a shape
-object and returns a `float` of the area for that shape. If your
+object and returns a `float` of the area for that shape. Hint: If your
 definition isn't truly trivial, you're missing the point here.
 ....................................................................*)
 let area (s : shape) : float =
@@ -320,12 +325,12 @@ let s_list = [ new rect (1., 1.) 4.0 5.0;
 
    When you've completed this exercise, you might notice that the type
    reported for this list is `rect list`. Why is that, especially
-   since not all the elements of the list are rectangles, and all
+   since not all the elements of the list are rectangles (!), and all
    elements of a list are supposed to be of the same type? The actual
    *type* associated with the elements of the list is an "object
    type", as described in Real World OCaml
-   <https://dev.realworldocaml.org/objects.html>, in
-   particular, something like:
+   <https://dev.realworldocaml.org/objects.html>, in particular,
+   something like:
 
     < area : float; 
       bounding_box : point * point;
@@ -403,9 +408,10 @@ inherits from `square_rect`, but *overrides* the `scale` method so
 that the center (rather than the lower-left corner) of the square
 stays in the same place.
 
-You may find this tricky because you don't have access to the instance
-variables of the class that you inherit from. (Why is this?) A hint:
-First scale, then translate the center back to its original position.
+You may find this tricky because *you don't have access to the
+instance variables of the class that you inherit from*. (Why is this?)
+A hint: First scale, then translate the center back to its original
+position.
 ....................................................................*)
 
 class square_center_scale (p : point) (s : float) : shape =
@@ -425,8 +431,8 @@ class square_center_scale (p : point) (s : float) : shape =
    instance variable inherited from the `square_rect` class. But that
    instance variable is not available to be referred to -- either
    implicitly as `pos` or explicitly as `this#pos` or `super#pos` --
-   because the class type of the superclass `square_rect`, shape, does
-   not reveal the `pos` instance variable. Only the five methods
+   because the class type of the superclass `square_rect`, `shape`,
+   does not reveal the `pos` instance variable. Only the five methods
    specified in the shape class type are available to use.
 
    Were we not to specify that the class satisfy the `shape` class
@@ -436,7 +442,7 @@ class square_center_scale (p : point) (s : float) : shape =
    information-hiding role of the class type, introducing a design
    flaw in the overall system; classes should generally be explicit
    about their signatures (via class types) to provide a strong
-   abstraction barrier. 
+   abstraction barrier.
 
    Why refer to `this#center` versus `super#center`? By virtue of
    inheritance, these refer to the same method, so either will give
@@ -475,11 +481,13 @@ class type quad =
   object
     inherit shape
 
-    (* return the lengths of the four sides *)
+    (* returns the lengths of the four sides *)
     method sides : float * float * float * float
   end ;;
 
-(* We can revise the type hierarchy as below, adding the `quad` class type and some quadrilateral classes `square_quad` and `rect_quad`, allowing us to drop `square` and `rect` but keeping `circle`. 
+(* We can revise the type hierarchy as below, adding the `quad` class
+type and some quadrilateral classes `square_quad` and `rect_quad`,
+allowing us to drop `square` and `rect` but keeping `circle`.
 
                   +------------+
                   |            |
@@ -514,18 +522,26 @@ that implements a `quad` class type. Hint: By taking advantage of
 existing classes, you should only need to implement a single method.
 ....................................................................*)
   
-class rect_quad (p : point) (w : float) (h : float) : quad =
+class rect_quad (initial_pos : point)
+                (initial_width : float)
+                (initial_height : float)
+              : quad =
   object
-    inherit rect p w h as super
+    inherit rect initial_pos initial_width initial_height as super
 
     method sides : float * float * float * float =
       let ((x1, y1), (x2, y2)) = super#bounding_box in
-      let w = x2 -. x1 in
-      let h = y2 -. y1 in
-      (w, h, w, h)
+      let width = x2 -. x1 in
+      let height = y2 -. y1 in
+      (width, height, width, height)
   end ;;
 
-(* Note that we've referred to `super#bounding_box` here. But because
+(* We can't just use `initial_width` and `initial_height` in the
+   return value, since the actual width and height may have changed
+   since. Instead, we make use of the `bounding_box` method to reveal
+   the current width and height of the rectangle.
+
+   Note that we've referred to `super#bounding_box` here. But because
    of late binding, we could just as well have referred to
    `this#bounding_box`, which ends up referring to the same method. *)
 
@@ -543,12 +559,12 @@ class square_quad (p : point) (s : float) : quad =
 (* Remember Exercise 2D, in which you implemented an area function for
 shapes? Amazingly, even though we have continued to create new shapes,
 due to subtyping and inheritance we can still rely on the existing
-implementation you already created.
+implementation you already created! *)
 
-......................................................................
-Exercise 4C: Create an instance of `square_quad` and name it `sq`. Then,
-pass it to the area function to find out its area and store the result
-in a variable "a".
+(*....................................................................
+Exercise 4C: Create an instance of `square_quad` and name it
+`sq`. Then, pass it to the area function to find out its area and
+store the result in a variable "a".
 
 Hint: If you find yourself having problems with what ought to be a
 simple exercise, see the discussion of subtype coercion in Section
@@ -577,9 +593,9 @@ let area_list : shape list -> float list =
   List.map area ;;
 
 (* This works because of *dynamic dispatch*; we decide the code to run
-   at run-time instead of compile-time. In other words, the `shape#area`
-   call in the `area` function determines at run-time the specific
-   method to call based on the object `s` passed to it.
+   at run-time instead of compile-time. In other words, the
+   `shape#area` call in the `area` function determines at run-time the
+   specific method to call based on the object passed to it.
 
    Compare this to the `area_adt` function, which is not dynamic
    because the same code is run every time. Even though the match case
