@@ -60,6 +60,7 @@ that accepts a `shape_adt` and returns a `float` representing the area
 of the shape. (You can review the area calculations for the various
 shapes in Section B.4 of the textbook.)
 ....................................................................*)
+
 let area_adt (s : shape_adt) : float =
   match s with
   | Square (_, s) -> s *. s
