@@ -28,7 +28,7 @@ populated by creatures of geometric shapes
 How can we solve this problem?
 
 There are several approaches. As a first attempt we might use
-algebraic data types. (Later, we'll see this isn't quite ideal.)
+algebraic data types. (Later, we will see this isn't quite ideal.)
 
 First, we'll define a point to store (x, y) coordinates. *)
 
